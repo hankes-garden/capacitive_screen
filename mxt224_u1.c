@@ -213,15 +213,18 @@ struct mxt224_data *copy_data;
 int touch_is_pressed;
 EXPORT_SYMBOL(touch_is_pressed);
 
+/* jason's define */
 #define NODE_NUM 209
 uint16_t qt_refrence_node[NODE_NUM] = { 0 };
 uint16_t qt_delta_node[NODE_NUM] = { 0 };
+uint16_t raw_delta_node[NODE_NUM] = {0};
 int raw_data_node [NODE_NUM] = {0};
 
 int g_nAmp = 0; // newest amplitude data
 
 #define MAX_DATA_STR_BUF 300 * 6
 char g_arrRawDelta [MAX_DATA_STR_BUF] = {0}; 
+int read_all_delta_data_ex(uint16_t dbg_mode);
 int read_all_data(uint16_t dbg_mode);
 int read_all_delta_data(uint16_t dbg_mode);
 static void mxt224_optical_gain(uint16_t dbg_mode);
@@ -765,11 +768,11 @@ static void mxt224_ta_probe(bool ta_status)
 		size_one = 1;
 		// TCHTHR
 		value = (u8) copy_data->threshold;
-		printk(KERN_ERR "[yl]old TCHTHR=%d.\n", value); 
-		value = (u8) 50;
+		/* printk(KERN_ERR "[yl] old TCHTHR=%d.\n", value);  */
+		/* value = (u8) 50; */
 		write_mem(copy_data, obj_address + (u16) register_address,
 			  size_one, &value);
-		printk(KERN_ERR "[yl]TCHTHR=%d.\n", value);
+		printk(KERN_ERR "[yl] current TCHTHR=%d.\n", value);
                
 		/* // BLEN */
 		/* write_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
@@ -1853,7 +1856,8 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 
 	do {
 		touch_message_flag = 0;
-
+        
+        // calibration
 		if (read_mem(data, data->msg_proc, sizeof(msg), msg))
 			return IRQ_HANDLED;
 
@@ -1882,6 +1886,7 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 			}
 		}
 
+        // palm press & release
 		if ((msg[0] == 14) && (copy_data->family_id == 0x80)) {
 			if ((msg[1] & 0x01) == 0x00) {/* Palm release */
 				printk(KERN_ERR "[TSP] Palm release");
@@ -1897,6 +1902,7 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 			}
 		}
 
+        // freq change
 		if ((msg[0] == 0xf) && (copy_data->family_id == 0x80)) {
 			if ((msg[1]&0x08) == 0x08) {
 				copy_data->freq_table.fherr_cnt++;
@@ -1916,6 +1922,7 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 				}
 			}
 		}
+
 #ifdef CLEAR_MEDIAN_FILTER_ERROR
 		if ((msg[0] == 18) && (data->family_id == 0x81)) {
 			if ((msg[4] & 0x5) == 0x5) {
@@ -1946,13 +1953,15 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 		}
 #endif
 
-        // compute raw data w.r.t. ref & delta value 
-		read_all_delta_data(QT_DELTA_MODE);
-		compute_raw_data(qt_refrence_node, qt_delta_node, raw_data_node, NODE_NUM);
-		data2str(raw_data_node,  NODE_NUM, g_arrRawDelta,  MAX_DATA_STR_BUF);
-
-
+        // enter the examination of different events
 		if (msg[0] > 1 && msg[0] < 12) {
+
+            // compute raw data w.r.t. ref & delta value 
+            read_all_delta_data_ex(QT_DELTA_MODE);
+            compute_raw_data(qt_refrence_node, raw_delta_node, raw_data_node, NODE_NUM);
+            data2str(raw_data_node,  NODE_NUM, g_arrRawDelta,  MAX_DATA_STR_BUF);
+            printk(KERN_ERR "raw delta=%d.\n", raw_delta_node[100]);
+
 
 			if ((copy_data->touch_is_pressed_arr[msg[0] - 2] == 1)
 			    && (msg[1] & 0x40)) {
@@ -1974,6 +1983,7 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 
 			id = msg[0] - data->finger_type;
 
+            // finger release
 			if (msg[1] & RELEASE_MSG_MASK) {
 				data->fingers[id].z = TSP_STATE_RELEASE;
 				data->fingers[id].w = msg[5];
@@ -1990,12 +2000,6 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 				else if (msg[1] & MOVE_MSG_MASK)
 					copy_data->touch_is_pressed_arr[id] =
 					TSP_STATE_MOVE;
-
-				// compute raw data w.r.t. ref & delta value 
-				/* read_all_delta_data(QT_DELTA_MODE); */
-				/* read_all_data(QT_REFERENCE_MODE); */
-				/* compute_raw_data(qt_refrence_node, qt_delta_node, raw_data_node, NODE_NUM); */
-				/* data2str(raw_data_node,  NODE_NUM, g_arrRawDelta,  MAX_DATA_STR_BUF); */
 
 				data->fingers[id].z = msg[6];
 				data->fingers[id].w = msg[5];
@@ -2341,8 +2345,6 @@ void diagnostic_chip(u8 mode)
 // read raw data of given node
 void read_dbg_data(uint8_t dbg_mode, uint8_t node, uint16_t *dbg_data)
 {
-	printk(KERN_ERR, "[yl] read_dbg_data");
-
 	u8 read_page, read_point;
 	u8 data_buffer[2] = { 0 };
 	int i, ret;
@@ -2407,8 +2409,6 @@ void read_dbg_data(uint8_t dbg_mode, uint8_t node, uint16_t *dbg_data)
 // read raw data from T37 object
 int read_all_data(uint16_t dbg_mode)
 {
-	printk(KERN_ERR, "[yl] read_all_data");
-
 	u8 read_page, read_point;
 	u16 max_value = MAX_VALUE, min_value = MIN_VALUE;
 	u16 object_address = 0;
@@ -2499,6 +2499,47 @@ int read_all_data(uint16_t dbg_mode)
 
 	return state;
 }
+// read raw delta from T37 obj
+int read_all_delta_data_ex(uint16_t dbg_mode)
+{
+	u8 read_page, read_point;
+	u16 object_address = 0;
+	u8 data_buffer[2] = { 0 };
+	u8 node = 0;
+	int num = 0;
+	int ret;
+	u16 size;
+
+    // set diagnostic field in T6
+	diagnostic_chip(dbg_mode);
+
+    // get T37 object
+	ret = get_object_info(copy_data, DEBUG_DIAGNOSTIC_T37, &size,
+                          &object_address);
+
+    // read delta data
+	for (read_page = 0; read_page < 4; read_page++) {
+		for (node = 0; node < 64; node++) {
+			read_point = (node * 2) + 2;
+			read_mem(copy_data, object_address + (u16) read_point,
+				 2, data_buffer);
+			raw_delta_node[num] =
+			    ((uint16_t) data_buffer[1] << 8) +
+			    (uint16_t) data_buffer[0]; // note: such data is in two's complement
+
+			num = num + 1;
+
+			/* all node => 19 * 11 = 209 => (3page * 64) + 17 */
+			if ((read_page == 3) && (node == 16))
+				break;
+
+		}
+		diagnostic_chip(QT_PAGE_UP);
+	}
+
+	return 0;
+}
+
 
 // read raw delta from T37 obj
 int read_all_delta_data(uint16_t dbg_mode)

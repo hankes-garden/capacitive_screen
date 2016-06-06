@@ -4,7 +4,7 @@ GraphicsArray = []
 TouchPointGraphicsArray = []
 
 
-WindowWidth = 480
+WindowWidth = 800 
 WindowHeight = 800
 PhoneScreenWidth = 480.0
 PhoneScreenHeight = 800.0
