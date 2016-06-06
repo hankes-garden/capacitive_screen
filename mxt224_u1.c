@@ -771,19 +771,19 @@ static void mxt224_ta_probe(bool ta_status)
 			  size_one, &value);
 		printk(KERN_ERR "[yl]TCHTHR=%d.\n", value);
                
-		// BLEN
-		write_mem(copy_data, obj_address + (u16) nBLENRegAddr,
-			  size_one, &nBLENValue);
-		read_mem(copy_data, obj_address + (u16) nBLENRegAddr,
-			 (u8) size_one, &nBLENValue);
-		printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue);
+		/* // BLEN */
+		/* write_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
+			  /* size_one, &nBLENValue); */
+		/* read_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
+			 /* (u8) size_one, &nBLENValue); */
+		/* printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue); */
 
-		// AMPHYST 
-                write_mem(copy_data, obj_address + (u16) nAmpHystRegAddr,
-			  size_one, &nAmpHystValue);
-        	read_mem(copy_data, obj_address + (u16) nAmpHystRegAddr,
-			 (u8) size_one, &nAmpHystValue);
-		printk(KERN_ERR "[yl]current AMPHYST=%d.\n", nAmpHystValue);
+		/* // AMPHYST  */
+        /* write_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
+			  /* size_one, &nAmpHystValue); */
+        /* read_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
+			 /* (u8) size_one, &nAmpHystValue); */
+		/* printk(KERN_ERR "[yl]current AMPHYST=%d.\n", nAmpHystValue); */
 
 #if !defined(PRODUCT_SHIP)
 		read_mem(copy_data, obj_address + (u16) register_address,
@@ -2531,7 +2531,7 @@ int read_all_delta_data(uint16_t dbg_mode)
 		msleep(20);
 	}
 #else
-	msleep(50);		/* msleep(20);  */
+	/* msleep(10);		[> msleep(20);  <] */
 #endif
 
 	for (read_page = 0; read_page < 4; read_page++) {
