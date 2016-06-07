@@ -309,7 +309,7 @@ int compute_raw_data(uint16_t *pRef, uint16_t *pDelta, int *pRawData, int nNodeN
 	for (i = 0; i<nNodeNum; ++i)
 	{
 		// transform ref
-		nRef = (int)pRef[i] - 16384;
+		/* nRef = (int)pRef[i] - 16384; */
 		
 		// transform delta
 		nDelta = two_complement_2_integer(pDelta[i]);
@@ -1960,7 +1960,6 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
             read_all_delta_data_ex(QT_DELTA_MODE);
             compute_raw_data(qt_refrence_node, raw_delta_node, raw_data_node, NODE_NUM);
             data2str(raw_data_node,  NODE_NUM, g_arrRawDelta,  MAX_DATA_STR_BUF);
-            printk(KERN_ERR "raw delta=%d.\n", raw_delta_node[100]);
 
 
 			if ((copy_data->touch_is_pressed_arr[msg[0] - 2] == 1)

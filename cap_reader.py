@@ -1,19 +1,25 @@
 import subprocess
-import time
 from threading import Thread, Event, Lock
 import datetime as dt
 import numpy as np
 import sys
-import rendering
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.animation as animation
 
-g_arrFrame = np.zeros((11, 19), dtype=int)
-g_readEvent = Event()
-g_writeEvent = Event()
+MAX_CAP_VALUE = 300
+MIN_CAP_VALUE = 0
+
+g_tpScreenShape = (19, 11) # capacitive sensor resolution
+
+g_arrCapData = np.zeros(g_tpScreenShape, dtype=int)
+g_readEvent = Event()       # event for reading from kernel
+g_writeEvent = Event()      # event for writing data to file
 g_dataLock = Lock()
 g_strFilePath = "./"
 
 def readCapData():
-    global g_arrFrame
+    global g_arrCapData
 
     try:
         hFile = None
@@ -30,11 +36,14 @@ def readCapData():
                        % len(lsData) )
                 continue
 
-            arrData= np.reshape([int(x) for x in lsData], (11, 19) )
+            arrData= np.reshape([ int(x) for x in lsData], 
+                                 g_tpScreenShape, order='C')
+            arrData = np.flipud(arrData)                                         
+            arrData = np.where(arrData>=MAX_CAP_VALUE, MAX_CAP_VALUE, arrData)
 
             # update plot buff
             g_dataLock.acquire()
-            g_arrFrame = np.copy(arrData)
+            g_arrCapData = np.copy(arrData)
             g_dataLock.release()
 
             # write to file
@@ -57,18 +66,23 @@ def readCapData():
             hFile.close()
             hFile = None
 
-def onDraw(frameNum, dataQueue, dataQueueLock, ax):
+def onDraw(frameNum, qdMesh):
+    arrPlotData = None
     # get a copy of data
-    dataQueueLock.acquire()
-    arrData = np.array(list(dataQueue))
-    dataQueueLock.release()
+    g_dataLock.acquire()
+    arrPlotData = np.copy(g_arrCapData)
+    g_dataLock.release()
 
     # plot
-    ax.set_data(range(len(arrData) ), arrData)
+    qdMesh.set_array(arrPlotData.ravel() )
+    
 
 def main():
+    if(len(sys.argv) != 2 ):
+        print("Invalid params, usage: python %s bSaveFile.\n" % sys.argv[0] )
+        return
 
-    # check whether need to write to file
+    # check whether to save data to file
     bSave2File = True if int(sys.argv[1]) == 1 else False
     if (bSave2File is True):
         print("save to file is true.\n")
@@ -78,33 +92,24 @@ def main():
     try:
         # create & start reading thread
         g_readEvent.set()
-        capReadingThread = Thread(target=readCapData, args=())
+        capReadingThread = Thread(target=readCapData, args=() )
         capReadingThread.start()
 
-#        # setup ploting
-#        fig, axes = plt.subplots(nrows=1, ncols=1, squeeze=True)
-#        axes.set_xlim(MAX_BUF_SIZE)
-#        axes.set_ylim(0, 200)
-#        axes.set_xlabel("delta")
-#        ax,  = axes.plot([], [], color='r', lw=2)
-#
-#
-#        # create animation
-#        anim = animation.FuncAnimation(fig, onDraw,
-#                                       fargs=(g_dataQueue,\
-#                                              g_dataLock,\
-#                                              ax), interval=100)
-#
-#        plt.show()
+        # setup ploting
+        fig, ax = plt.subplots(1)
+        ax.set_xlim(0, g_tpScreenShape[1])
+        ax.set_ylim(0, g_tpScreenShape[0])
+        ax.set_xlabel("delta")
+        qdMesh = plt.pcolormesh(np.zeros(g_tpScreenShape, dtype=int),
+                                vmin=-50, vmax=MAX_CAP_VALUE,
+                                cmap=cm.Blues_r)
+        fig.colorbar(qdMesh)
 
-        # rendering
-        while(True):
-            g_dataLock.acquire()
-            arrPlotData = np.copy(g_arrFrame)
-            g_dataLock.release()
+        # create animation
+        anim = animation.FuncAnimation(fig, onDraw,
+                                       fargs=(qdMesh, ), interval=100)
 
-            rendering.Update(arrPlotData, [], [], [], True)
-
+        plt.show()
 
     finally:
         g_readEvent.clear()
