@@ -19,6 +19,8 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
+#include <linux/workqueue.h>
+#include <linux/jiffies.h>
 
 // raw includes
 #include <linux/kernel.h>
@@ -215,25 +217,28 @@ EXPORT_SYMBOL(touch_is_pressed);
 
 /* jason's define */
 #define NODE_NUM 209
+#define MAX_DATA_STR_BUF 300 * 6
+#define REFRESH_RATE 100
 uint16_t qt_refrence_node[NODE_NUM] = { 0 };
 uint16_t qt_delta_node[NODE_NUM] = { 0 };
 uint16_t raw_delta_node[NODE_NUM] = {0};
 int raw_data_node [NODE_NUM] = {0};
+int g_nAmp = 0;                                             // newest amplitude data
+char g_arrOutputBuf [MAX_DATA_STR_BUF] = {0}; 
+static struct workqueue_struct *g_workqueue = NULL;                // workqueue to defer work to bottom-half
+static struct delayed_work g_work;
+static bool g_bSafe2GetRawData = false;
 
-int g_nAmp = 0; // newest amplitude data
-
-#define MAX_DATA_STR_BUF 300 * 6
-char g_arrRawDelta [MAX_DATA_STR_BUF] = {0}; 
+/*---- jason's declaration  ----*/
 int read_all_delta_data_ex(uint16_t dbg_mode);
 int read_all_data(uint16_t dbg_mode);
 int read_all_delta_data(uint16_t dbg_mode);
 static void mxt224_optical_gain(uint16_t dbg_mode);
-
-/*---- jason's function  ----*/
 static int proc_open(struct inode *inode, struct file *filp);
 int data2str(int *pData, int nDataSize, char *pStrBuf, int nStrBufSize);
 int compute_raw_data(uint16_t *pRef, uint16_t *pDelta, int *pRawData, int nNodeNum);
 int two_complement_2_integer(uint16_t val);
+int get_raw_data();
 
 
 // file operation bond to proc fs 
@@ -245,12 +250,32 @@ static const struct file_operations proc_fops = {
     .release    = single_release,
 };
 
+// get the raw capacitance data from T37
+int get_raw_data()
+{
+    if(!g_bSafe2GetRawData)
+    {
+        printk(KERN_ERR "[yl] unsafe to get_raw_data.\n");
+        queue_delayed_work(g_workqueue, &g_work, msecs_to_jiffies(REFRESH_RATE) );
+
+        return -1;
+    }
+
+    read_all_delta_data_ex(QT_DELTA_MODE);
+    compute_raw_data(qt_refrence_node, raw_delta_node, raw_data_node, NODE_NUM);
+    data2str(raw_data_node, NODE_NUM, g_arrOutputBuf, MAX_DATA_STR_BUF);
+
+    // insert next delay work
+    queue_delayed_work(g_workqueue, &g_work, msecs_to_jiffies(REFRESH_RATE) );
+
+    return 0;
+}
+
+
 // write to proc file
 static int proc_show(struct seq_file *m, void *v)
 {
-	/* seq_printf(m, "%d", g_nAmp); */
-	seq_printf(m, "%s", g_arrRawDelta);
-
+	seq_printf(m, "%s", g_arrOutputBuf);
 	return 0;	
 }
 
@@ -787,6 +812,7 @@ static void mxt224_ta_probe(bool ta_status)
         /* read_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
 			 /* (u8) size_one, &nAmpHystValue); */
 		/* printk(KERN_ERR "[yl]current AMPHYST=%d.\n", nAmpHystValue); */
+
 
 #if !defined(PRODUCT_SHIP)
 		read_mem(copy_data, obj_address + (u16) register_address,
@@ -1955,13 +1981,9 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 
         // enter the examination of different events
 		if (msg[0] > 1 && msg[0] < 12) {
-
-            // compute raw data w.r.t. ref & delta value 
-            read_all_delta_data_ex(QT_DELTA_MODE);
-            compute_raw_data(qt_refrence_node, raw_delta_node, raw_data_node, NODE_NUM);
-            data2str(raw_data_node,  NODE_NUM, g_arrRawDelta,  MAX_DATA_STR_BUF);
-
-
+           
+            // now it's safe to get raw data
+            g_bSafe2GetRawData = true;
 			if ((copy_data->touch_is_pressed_arr[msg[0] - 2] == 1)
 			    && (msg[1] & 0x40)) {
 				printk(KERN_ERR
@@ -2045,6 +2067,7 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 				continue;
 			}
 		}
+
 		if (data->finger_mask)
 			report_input_data(data);
 
@@ -2498,25 +2521,41 @@ int read_all_data(uint16_t dbg_mode)
 
 	return state;
 }
+
 // read raw delta from T37 obj
 int read_all_delta_data_ex(uint16_t dbg_mode)
 {
-	u8 read_page, read_point;
+    u8 read_page, read_point;
 	u16 object_address = 0;
 	u8 data_buffer[2] = { 0 };
 	u8 node = 0;
+	int state = 0;
 	int num = 0;
 	int ret;
 	u16 size;
 
-    // set diagnostic field in T6
+	/* Page Num Clear */
+	diagnostic_chip(QT_CTE_MODE);
+	msleep(30);		/* msleep(20);  */
+
 	diagnostic_chip(dbg_mode);
+	msleep(30);		/* msleep(20);  */
 
-    // get T37 object
-	ret = get_object_info(copy_data, DEBUG_DIAGNOSTIC_T37, &size,
-                          &object_address);
+	ret =
+	    get_object_info(copy_data, DEBUG_DIAGNOSTIC_T37, &size,
+			    &object_address);
+/*jerry no need to leave it */
+#if 0
+	for (i = 0; i < 5; i++) {
+		if (data_buffer[0] == dbg_mode)
+			break;
 
-    // read delta data
+		msleep(20);
+	}
+#else
+	msleep(50);		/* msleep(20);  */
+#endif
+
 	for (read_page = 0; read_page < 4; read_page++) {
 		for (node = 0; node < 64; node++) {
 			read_point = (node * 2) + 2;
@@ -2524,7 +2563,7 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 				 2, data_buffer);
 			raw_delta_node[num] =
 			    ((uint16_t) data_buffer[1] << 8) +
-			    (uint16_t) data_buffer[0]; // note: such data is in two's complement
+			    (uint16_t) data_buffer[0];
 
 			num = num + 1;
 
@@ -2534,9 +2573,10 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 
 		}
 		diagnostic_chip(QT_PAGE_UP);
+		msleep(20);
 	}
 
-	return 0;
+	return state;
 }
 
 
@@ -3999,7 +4039,23 @@ static struct i2c_driver mxt224_i2c_driver = {
 
 static int __init mxt224_init(void)
 {
+    printk(KERN_ERR "[yl] mxt224_init.\n");
+
+    // create proc file to communicate with user mode
 	proc_create("amplitude_log", 0, NULL, &proc_fops);
+
+    // initialize workqueue
+    g_workqueue = create_singlethread_workqueue("get_raw_data");
+    if(g_workqueue != NULL)
+    {
+        INIT_DELAYED_WORK(&g_work, get_raw_data);
+        //enqueue first delayed work
+        queue_delayed_work(g_workqueue, &g_work, msecs_to_jiffies(REFRESH_RATE));
+    }
+    else
+    {
+        printk(KERN_ERR "[yl] Error, can not create workqueue.\n");
+    }
 
 	return i2c_add_driver(&mxt224_i2c_driver);
 }
@@ -4007,6 +4063,11 @@ static int __init mxt224_init(void)
 static void __exit mxt224_exit(void)
 {
 	i2c_del_driver(&mxt224_i2c_driver);
+
+    /* // release work queuqe */
+    /* cancel_delayed_work(&g_work); */
+    /* flush_workqueue(g_workqueue); */
+    /* destroy_workqueue(g_workqueue); */
 }
 
 module_init(mxt224_init);
