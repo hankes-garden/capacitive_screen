@@ -1,3 +1,4 @@
+from collections import deque
 import subprocess
 from threading import Thread, Event, Lock
 import datetime as dt
@@ -8,8 +9,12 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.animation as animation
 
+
 MAX_CAP_VALUE = 300
 MIN_CAP_VALUE = 0
+
+MAX_SINGLE_POINT_SIZE = 200
+MAX_SINGLE_POINT_VALUE = 2000
 
 g_tpScreenShape = (19, 11) # capacitive sensor resolution
 g_lsTextObj = []
@@ -18,6 +23,7 @@ g_readEvent = Event()       # event for reading from kernel
 g_writeEvent = Event()      # event for writing data to file
 g_dataLock = Lock()
 g_strFilePath = "./"
+g_dqSinglePoint = deque([0]*MAX_SINGLE_POINT_SIZE, maxlen=MAX_SINGLE_POINT_SIZE)
 
 def readCapData():
     global g_arrCapData
@@ -41,8 +47,11 @@ def readCapData():
             arrData= np.reshape([ int(x) for x in lsData], 
                                  g_tpScreenShape, order='C')
             arrData = np.flipud(arrData)                                         
+            nSPData = max([val for val in arrData.ravel() \
+                           if val<MAX_SINGLE_POINT_VALUE] )
             g_dataLock.acquire()
             g_arrCapData = np.copy(arrData)
+            g_dqSinglePoint.append(nSPData)
             g_dataLock.release()
 
             # write to file
@@ -68,16 +77,21 @@ def readCapData():
             hFile.close()
             hFile = None
 
-def onDraw(frameNum, ax, qdMesh):
-    arrPlotData = None
+def onDraw(frameNum, axes, qdMesh, lnSinglePoint):
+    arrHeatmapData = None
+    arrSPData = None
     # get a copy of data
     g_dataLock.acquire()
-    arrPlotData = np.copy(g_arrCapData)
+    arrHeatmapData = np.copy(g_arrCapData)
+    arrSPData = np.array([v for v in g_dqSinglePoint] )
     g_dataLock.release()
 
-    # plot
-    qdMesh.set_array(arrPlotData.ravel() )
-    annotateHeatMap(ax, arrPlotData)
+    # heatmap plot
+    qdMesh.set_array(arrHeatmapData.ravel() )
+    annotateHeatMap(axes[0], arrHeatmapData)
+    
+    # single-point trends
+    lnSinglePoint.set_data(range(MAX_SINGLE_POINT_SIZE), arrSPData)
   
 def annotateHeatMap(ax, arrData):
     if(len(g_lsTextObj) != 0):
@@ -116,20 +130,30 @@ def main():
         capReadingThread.start()
 
         # setup ploting
-        fig, ax = plt.subplots(1, figsize=(8, 8) )
-        ax.set_xlim(0, g_tpScreenShape[1])
-        ax.set_ylim(0, g_tpScreenShape[0])
-        ax.set_xlabel("delta")
+        fig, axes = plt.subplots(nrows=1, ncols=2, 
+                               figsize=(14, 8), squeeze=True )
+        # heatmap
+        axes[0].set_xlim(0, g_tpScreenShape[1])
+        axes[0].set_ylim(0, g_tpScreenShape[0])
+        axes[0].set_xlabel("delta")
         arrData = np.zeros(g_tpScreenShape, dtype=int)
-        qdMesh = plt.pcolormesh(arrData,
+        qdMesh = axes[0].pcolormesh(arrData,
                                 vmin=0, vmax=MAX_CAP_VALUE,
                                 cmap=cm.Blues_r)
-        annotateHeatMap(ax, arrData)
+        annotateHeatMap(axes[0], arrData)
         fig.colorbar(qdMesh)
+        
+        # single-point delta
+        axes[1].set_xlim(0, 200)
+        axes[1].set_ylim(0, 1000)
+        axes[1].set_xlabel("Time")
+        axes[1].grid(True)
+        lnSinglePoint, = axes[1].plot([], [], color='r', lw=2)
 
         # create animation
         anim = animation.FuncAnimation(fig, onDraw,
-                                       fargs=(ax, qdMesh), interval=100)
+                                       fargs=(axes, qdMesh, lnSinglePoint),
+                                       interval=100)
 
         plt.tight_layout()
         plt.show()

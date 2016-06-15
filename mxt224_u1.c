@@ -820,7 +820,24 @@ static void mxt224_ta_probe(bool ta_status)
         /* read_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
 			 /* (u8) size_one, &nAmpHystValue); */
 		/* printk(KERN_ERR "[yl]current AMPHYST=%d.\n", nAmpHystValue); */
+        
+        /* set T8 Obj */
+		ret = get_object_info(copy_data, GEN_ACQUISITIONCONFIG_T8,
+				              &size_one, &obj_address);
+		// TCHDRIFT
+        value = 0;
+		read_mem(copy_data, obj_address + 2, 1, &value);
+		printk(KERN_ERR "[yl] previous TCHDRIFT=%d.\n", value);
+        
+        value = 255;
+		write_mem(copy_data, obj_address + 2, 1, &value);
+		printk(KERN_ERR"[yl] Current TCHDRIFT=%d.\n", value);
 
+
+        // TCHAUTOCAL disable 
+        value = 0;
+		write_mem(copy_data, obj_address + 4, 1, &value);
+		printk(KERN_ERR"[yl] auto cal disable.\n");
 
 #if !defined(PRODUCT_SHIP)
 		read_mem(copy_data, obj_address + (u16) register_address,
