@@ -228,6 +228,7 @@ char g_arrOutputBuf [MAX_DATA_STR_BUF] = {0};
 static struct workqueue_struct *g_workqueue = NULL;                // workqueue to defer work to bottom-half
 static struct delayed_work g_work;
 static bool g_bSafe2GetRawData = false;
+static bool g_bFuncTrace = true;
 
 /*---- jason's declaration  ----*/
 int read_all_delta_data_ex(uint16_t dbg_mode);
@@ -397,6 +398,7 @@ static int write_mem(struct mxt224_data *data, u16 reg, u8 len, const u8 * buf)
 
 static int __devinit mxt224_reset(struct mxt224_data *data)
 {
+
 	u8 buf = 1u;
 	return write_mem(data, data->cmd_proc + CMD_RESET_OFFSET, 1, &buf);
 }
@@ -574,6 +576,12 @@ static int check_abs_time_freq_err(void)
 
 static void mxt224_ta_probe(bool ta_status)
 {
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_ta_probe.\n");
+    }
+
+
 	u16 obj_address = 0;
 	u16 size_one;
 	int ret;
@@ -1289,6 +1297,13 @@ static int __devinit mxt224_init_touch_driver(struct mxt224_data *data)
 	int ret;
 	u8 type_count = 0;
 	u8 tmp;
+
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_init_touch_driver.\n");
+    }
+
+
 
 	ret = read_mem(data, 0, sizeof(id), id);
 	if (ret)
@@ -2215,6 +2230,12 @@ static int mxt224_suspend(struct device *dev)
 
 static int mxt224_resume(struct device *dev)
 {
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_resume.\n");
+    }
+
+
 	int ret = 0;
 	bool ta_status = 0;
 	struct i2c_client *client = to_i2c_client(dev);
@@ -2344,7 +2365,7 @@ void diagnostic_chip(u8 mode)
 			    &t6_address);
 
 	size_one = 1;
-	while (retry--) {
+	while (retry--) { // note that the success of writting memory does not imply command is executed.
 		error =
 		    write_mem(copy_data, t6_address + 5, (u8) size_one, &mode);
 
@@ -2443,10 +2464,10 @@ int read_all_data(uint16_t dbg_mode)
 
 	/* Page Num Clear */
 	diagnostic_chip(QT_CTE_MODE);
-	msleep(10);		/* msleep(20);  */
+	msleep(30);		/* msleep(20);  */
 
 	diagnostic_chip(dbg_mode);
-	msleep(10);		/* msleep(20);  */
+	msleep(30);		/* msleep(20);  */
 
 	ret =
 	    get_object_info(copy_data, DEBUG_DIAGNOSTIC_T37, &size,
@@ -2509,7 +2530,7 @@ int read_all_data(uint16_t dbg_mode)
 
 		}
 		diagnostic_chip(QT_PAGE_UP);
-		msleep(10);
+		msleep(20);
 	}
 
 	if ((max_value - min_value) > 4500) {
@@ -2535,8 +2556,8 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 	u16 size;
 
 	/* Page Num Clear */
-	diagnostic_chip(QT_CTE_MODE);
-	msleep(30);		/* msleep(20);  */
+	/* diagnostic_chip(QT_CTE_MODE); */
+	/* msleep(30);		[> msleep(20);  <] // wait for command execution. */
 
 	diagnostic_chip(dbg_mode);
 	msleep(30);		/* msleep(20);  */
@@ -2553,7 +2574,7 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 		msleep(20);
 	}
 #else
-	msleep(50);		/* msleep(20);  */
+	/* msleep(50);		[> msleep(20);  <] */
 #endif
 
 	for (read_page = 0; read_page < 4; read_page++) {
@@ -3545,6 +3566,12 @@ static const struct attribute_group qt602240_attr_group = {
 static int __devinit mxt224_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_probe.\n");
+    }
+
+
 	struct mxt224_platform_data *pdata = client->dev.platform_data;
 	struct mxt224_data *data;
 	struct input_dev *input_dev;
@@ -3999,6 +4026,12 @@ static int __devinit mxt224_probe(struct i2c_client *client,
 
 static int __devexit mxt224_remove(struct i2c_client *client)
 {
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_remove.\n");
+    }
+
+
 	struct mxt224_data *data = i2c_get_clientdata(client);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -4039,7 +4072,11 @@ static struct i2c_driver mxt224_i2c_driver = {
 
 static int __init mxt224_init(void)
 {
-    printk(KERN_ERR "[yl] mxt224_init.\n");
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_init.\n");
+    }
+
 
     // create proc file to communicate with user mode
 	proc_create("amplitude_log", 0, NULL, &proc_fops);
@@ -4062,12 +4099,17 @@ static int __init mxt224_init(void)
 
 static void __exit mxt224_exit(void)
 {
+    if (g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_exit.\n");
+    }
+
 	i2c_del_driver(&mxt224_i2c_driver);
 
-    /* // release work queuqe */
-    /* cancel_delayed_work(&g_work); */
-    /* flush_workqueue(g_workqueue); */
-    /* destroy_workqueue(g_workqueue); */
+    // release work queuqe
+    cancel_delayed_work(&g_work);
+    flush_workqueue(g_workqueue);
+    destroy_workqueue(g_workqueue);
 }
 
 module_init(mxt224_init);
