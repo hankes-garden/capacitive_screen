@@ -2,6 +2,7 @@ import subprocess
 from threading import Thread, Event, Lock
 import datetime as dt
 import numpy as np
+import time
 import sys
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -40,7 +41,6 @@ def readCapData():
             arrData= np.reshape([ int(x) for x in lsData], 
                                  g_tpScreenShape, order='C')
             arrData = np.flipud(arrData)                                         
-            #  arrData = np.where(arrData>=MAX_CAP_VALUE, MAX_CAP_VALUE, arrData)
             g_dataLock.acquire()
             g_arrCapData = np.copy(arrData)
             g_dataLock.release()
@@ -57,6 +57,9 @@ def readCapData():
                 hFile.flush()
                 hFile.close()
                 hFile = None
+
+            # sleep for a while
+            time.sleep(0.05)
 
     finally:
         # close file
