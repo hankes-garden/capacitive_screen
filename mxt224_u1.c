@@ -256,7 +256,7 @@ int get_raw_data()
 {
     if(!g_bSafe2GetRawData)
     {
-        printk(KERN_ERR "[yl] unsafe to get_raw_data.\n");
+        /* printk(KERN_ERR "[yl] unsafe to get_raw_data.\n"); */
         queue_delayed_work(g_workqueue, &g_work, msecs_to_jiffies(REFRESH_RATE) );
 
         return -1;
