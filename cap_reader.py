@@ -68,7 +68,7 @@ def readCapData():
                 hFile = None
 
             # sleep for a while
-            time.sleep(0.01)
+            time.sleep(0.005)
 
     finally:
         # close file
@@ -145,7 +145,7 @@ def main():
         
         # single-point delta
         axes[1].set_xlim(0, 200)
-        axes[1].set_ylim(500, 700)
+        axes[1].set_ylim(900, 1200)
         axes[1].set_xlabel("Time")
         axes[1].grid(True)
         lnSinglePoint, = axes[1].plot([], [], color='r', lw=2)
@@ -153,7 +153,7 @@ def main():
         # create animation
         anim = animation.FuncAnimation(fig, onDraw,
                                        fargs=(axes, qdMesh, lnSinglePoint),
-                                       interval=100)
+                                       interval=50)
 
         plt.tight_layout()
         plt.show()

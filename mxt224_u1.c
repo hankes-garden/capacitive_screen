@@ -215,7 +215,7 @@ struct mxt224_data *copy_data;
 int touch_is_pressed;
 EXPORT_SYMBOL(touch_is_pressed);
 
-/* jason's define */
+/* jason's variable definition */
 #define NODE_NUM 209
 #define MAX_DATA_STR_BUF 300 * 6
 #define REFRESH_RATE 100
@@ -241,7 +241,7 @@ int compute_raw_data(uint16_t *pRef, uint16_t *pDelta, int *pRawData, int nNodeN
 int two_complement_2_integer(uint16_t val);
 int get_raw_data();
 
-
+/* jason's function definition */
 // file operation bond to proc fs 
 static const struct file_operations proc_fops = {
     .owner      = THIS_MODULE,
@@ -801,25 +801,23 @@ static void mxt224_ta_probe(bool ta_status)
 		size_one = 1;
 		// TCHTHR
 		value = (u8) copy_data->threshold;
-		/* printk(KERN_ERR "[yl] old TCHTHR=%d.\n", value);  */
-		/* value = (u8) 50; */
 		write_mem(copy_data, obj_address + (u16) register_address,
 			  size_one, &value);
 		printk(KERN_ERR "[yl] current TCHTHR=%d.\n", value);
                
-		/* // BLEN */
-		/* write_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
-			  /* size_one, &nBLENValue); */
-		/* read_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
-			 /* (u8) size_one, &nBLENValue); */
-		/* printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue); */
+        // BLEN
+        write_mem(copy_data, obj_address + (u16) nBLENRegAddr,
+              size_one, &nBLENValue);
+        read_mem(copy_data, obj_address + (u16) nBLENRegAddr,
+             (u8) size_one, &nBLENValue);
+        printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue);
 
-		/* // AMPHYST  */
+        /* // AMPHYST  */
         /* write_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
-			  /* size_one, &nAmpHystValue); */
+              /* size_one, &nAmpHystValue); */
         /* read_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
-			 /* (u8) size_one, &nAmpHystValue); */
-		/* printk(KERN_ERR "[yl]current AMPHYST=%d.\n", nAmpHystValue); */
+             /* (u8) size_one, &nAmpHystValue); */
+        /* printk(KERN_ERR "[yl]current AMPHYST=%d.\n", nAmpHystValue); */
         
         /* set T8 Obj */
 		ret = get_object_info(copy_data, GEN_ACQUISITIONCONFIG_T8,
@@ -2236,6 +2234,12 @@ static void mxt224_late_resume(struct early_suspend *h)
 #else
 static int mxt224_suspend(struct device *dev)
 {
+    if(g_bFuncTrace)
+    {
+        printk(KERN_ERR "[yl] mxt224_suspend.\n");
+    }
+
+    g_bSafe2GetRawData = false;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt224_data *data = i2c_get_clientdata(client);
 
@@ -2610,6 +2614,7 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 				break;
 
 		}
+        break;
 		diagnostic_chip(QT_PAGE_UP);
 		msleep(20);
 	}
@@ -2632,10 +2637,10 @@ int read_all_delta_data(uint16_t dbg_mode)
 
 	/* Page Num Clear */
 	diagnostic_chip(QT_CTE_MODE);
-	/* msleep(10);		[> msleep(20);  <] */
+	msleep(30);		/* msleep(20);  */
 
 	diagnostic_chip(dbg_mode);
-	/* msleep(10);		[> msleep(20);  <] */
+	msleep(30);		/* msleep(20);  */
 
 	ret =
 	    get_object_info(copy_data, DEBUG_DIAGNOSTIC_T37, &size,
@@ -2649,7 +2654,7 @@ int read_all_delta_data(uint16_t dbg_mode)
 		msleep(20);
 	}
 #else
-	/* msleep(10);		[> msleep(20);  <] */
+	msleep(50);		/* msleep(20);  */
 #endif
 
 	for (read_page = 0; read_page < 4; read_page++) {
@@ -2669,7 +2674,7 @@ int read_all_delta_data(uint16_t dbg_mode)
 
 		}
 		diagnostic_chip(QT_PAGE_UP);
-		/* msleep(10); */
+		msleep(20);
 	}
 
 	return state;
