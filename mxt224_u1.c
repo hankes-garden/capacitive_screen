@@ -217,8 +217,9 @@ EXPORT_SYMBOL(touch_is_pressed);
 
 /* jason's variable definition */
 #define NODE_NUM 209
-#define MAX_DATA_STR_BUF 300 * 6
-#define REFRESH_RATE 100
+#define VALID_NODE_NUM 64
+#define MAX_DATA_STR_BUF VALID_NODE_NUM * 5
+#define REFRESH_RATE 10 
 uint16_t qt_refrence_node[NODE_NUM] = { 0 };
 uint16_t qt_delta_node[NODE_NUM] = { 0 };
 uint16_t raw_delta_node[NODE_NUM] = {0};
@@ -263,8 +264,8 @@ int get_raw_data()
     }
 
     read_all_delta_data_ex(QT_DELTA_MODE);
-    compute_raw_data(qt_refrence_node, raw_delta_node, raw_data_node, NODE_NUM);
-    data2str(raw_data_node, NODE_NUM, g_arrOutputBuf, MAX_DATA_STR_BUF);
+    compute_raw_data(qt_refrence_node, raw_delta_node, raw_data_node, VALID_NODE_NUM);
+    data2str(raw_data_node, VALID_NODE_NUM, g_arrOutputBuf, MAX_DATA_STR_BUF);
 
     // insert next delay work
     queue_delayed_work(g_workqueue, &g_work, msecs_to_jiffies(REFRESH_RATE) );
@@ -312,15 +313,7 @@ int data2str(int *pData, int nDataSize, char *pStrBuf, int nStrBufSize)
 
 int two_complement_2_integer(uint16_t val)
 {
-	int nValue = 0;
-
-	if (val < 32767)
-		nValue = (int)val;
-	else
-		nValue = (65535 - val)*(-1);
-
-	return nValue;
-
+    return ( (val<32767) ? (int)val : -1*(65535-val) );
 }
 
 // compute the raw data from reference and delta
@@ -805,12 +798,12 @@ static void mxt224_ta_probe(bool ta_status)
 			  size_one, &value);
 		printk(KERN_ERR "[yl] current TCHTHR=%d.\n", value);
                
-        // BLEN
-        write_mem(copy_data, obj_address + (u16) nBLENRegAddr,
-              size_one, &nBLENValue);
-        read_mem(copy_data, obj_address + (u16) nBLENRegAddr,
-             (u8) size_one, &nBLENValue);
-        printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue);
+        /* // BLEN */
+        /* write_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
+              /* size_one, &nBLENValue); */
+        /* read_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
+             /* (u8) size_one, &nBLENValue); */
+        /* printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue); */
 
         /* // AMPHYST  */
         /* write_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
@@ -823,9 +816,9 @@ static void mxt224_ta_probe(bool ta_status)
 		ret = get_object_info(copy_data, GEN_ACQUISITIONCONFIG_T8,
 				              &size_one, &obj_address);
 		// TCHDRIFT
-        value = 0;
-		read_mem(copy_data, obj_address + 2, 1, &value);
-		printk(KERN_ERR "[yl] previous TCHDRIFT=%d.\n", value);
+        /* value = 0; */
+		/* read_mem(copy_data, obj_address + 2, 1, &value); */
+		/* printk(KERN_ERR "[yl] previous TCHDRIFT=%d.\n", value); */
         
         value = 255;
 		write_mem(copy_data, obj_address + 2, 1, &value);
@@ -2239,7 +2232,6 @@ static int mxt224_suspend(struct device *dev)
         printk(KERN_ERR "[yl] mxt224_suspend.\n");
     }
 
-    g_bSafe2GetRawData = false;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt224_data *data = i2c_get_clientdata(client);
 
@@ -2581,24 +2573,13 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 	/* msleep(30);		[> msleep(20);  <] // wait for command execution. */
 
 	diagnostic_chip(dbg_mode);
-	msleep(30);		/* msleep(20);  */
+	msleep(5);		/* msleep(20);  */
 
 	ret =
 	    get_object_info(copy_data, DEBUG_DIAGNOSTIC_T37, &size,
 			    &object_address);
-/*jerry no need to leave it */
-#if 0
-	for (i = 0; i < 5; i++) {
-		if (data_buffer[0] == dbg_mode)
-			break;
 
-		msleep(20);
-	}
-#else
-	/* msleep(50);		[> msleep(20);  <] */
-#endif
-
-	for (read_page = 0; read_page < 4; read_page++) {
+	for (read_page = 0; read_page < 1; read_page++) {
 		for (node = 0; node < 64; node++) {
 			read_point = (node * 2) + 2;
 			read_mem(copy_data, object_address + (u16) read_point,
@@ -2614,9 +2595,8 @@ int read_all_delta_data_ex(uint16_t dbg_mode)
 				break;
 
 		}
-        break;
-		diagnostic_chip(QT_PAGE_UP);
-		msleep(20);
+		/* diagnostic_chip(QT_PAGE_UP); */
+		/* msleep(20); */
 	}
 
 	return state;

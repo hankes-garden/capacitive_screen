@@ -38,13 +38,14 @@ def readCapData():
                             shell=True, stdout=subprocess.PIPE).stdout.read()
 
             lsData = strData.split(",")[:-1]
-            if(len(lsData) != 209 ):
+            if(len(lsData) != 64 and len(lsData) != 209  ):
                 print("Error, the number of data is invalid: %d.\n" \
                        % len(lsData) )
                 continue
 
             # update plot buff
-            arrData= np.reshape([ int(x) for x in lsData], 
+            lsData_padding = lsData+ [0,]*(209-64)
+            arrData= np.reshape([ int(x) for x in lsData_padding], 
                                  g_tpScreenShape, order='C')
             arrData = np.flipud(arrData)                                         
             nSPData = max([val for val in arrData.ravel() \
@@ -68,7 +69,7 @@ def readCapData():
                 hFile = None
 
             # sleep for a while
-            time.sleep(0.005)
+            time.sleep(0.01)
 
     finally:
         # close file
