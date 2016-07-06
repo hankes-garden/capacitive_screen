@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.signal as signal
 import scipy.fftpack as fftpack
 
-g_strFilePath = '20160701_154652.txt'
+g_strFilePath = '20160701_143657.txt'
 
 def main():
 
