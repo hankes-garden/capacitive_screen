@@ -134,8 +134,8 @@ public class CapReader extends Activity
 		YAxis yl = chart.getAxisLeft();
 		yl.setTextColor(Color.BLACK);
 		yl.setDrawGridLines(true);
-		yl.setAxisMaxValue(1000f);
-		yl.setAxisMinValue(100f);
+		yl.setAxisMaxValue(1300f);
+		yl.setAxisMinValue(0f);
 		YAxis yl2 = chart.getAxisRight();
 		yl2.setEnabled(false);
 	}

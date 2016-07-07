@@ -74,7 +74,7 @@ public class DataReader implements Runnable
 					HashMap<String, Integer> hmStat = computeStatics(vals, VALID_RANGE_LOW, VALID_RANGE_HIGH);
 					
 					// update buffer
-					int nVal2Show = hmStat.get(STAT_AVG);
+					int nVal2Show = hmStat.get(STAT_MAX);
 					m_queue.offer(nVal2Show);
 					if (m_queue.size() > Common.MAX_DATA_SIZE)
 					{
@@ -159,7 +159,7 @@ public class DataReader implements Runnable
 	{
 		HashMap<String, Integer> mpStatics = new HashMap<>();
 		int nSum = 0;
-		int nMax = Integer.MIN_VALUE;
+		int nMax = 0;
 		int nAvg = 0;
 		int nValidSensorCount = 0;
 

@@ -8,7 +8,7 @@
     <Button
         android:id="@+id/button_finger"
         android:layout_width="fill_parent"
-        android:layout_height="150dp"
+        android:layout_height="110dp"
         android:text="Put finger here"
         android:textSize="25sp" />
 
