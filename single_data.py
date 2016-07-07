@@ -1,6 +1,6 @@
+import signal_filter as sf
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.signal as signal
 import scipy.fftpack as fftpack
 import sys
 
@@ -12,7 +12,6 @@ def main():
     with open(strFilePath, 'r') as hFile:
         for strLine in hFile:
             lsData = [int(x) for x in strLine.split(',')[:-1] ]
-            assert(len(lsData) == 209 )
             arrData = np.array(lsData)
             arrFiltered = np.where(arrData>2000, 0, arrData)
             nVal = np.max(arrFiltered)
@@ -20,27 +19,48 @@ def main():
 
     arrTouchVal = np.array(lsTouchValues)
     
-    # fft
     nSamplingFreq = 100
-    nFFTStart = 3*nSamplingFreq
-    nFFTEnd = nFFTStart + 3*nSamplingFreq
-    arrData2FFT = arrTouchVal[nFFTStart:nFFTEnd]
-
-    nSamples = len(arrData2FFT)    
-    dRes = nSamplingFreq * 1.0 / nSamples 
-    arrFFT = fftpack.fft(arrData2FFT)
-    arrNormPower = abs(arrFFT)/(nSamples*1.0)
     nDCEnd = 10
-    arrFreqIndex = np.linspace(nDCEnd*dRes, nSamplingFreq/2.0, nSamples/2-nDCEnd)
+    # fft on raw
+    arrFreqIndex, arrPower = computeFFT(arrTouchVal, nSamplingFreq, nDCEnd)
+                               
+                               
+    # fft on filtered data
+    arrFiltered = sf.butter_highpass_filter(arrTouchVal, 10, nSamplingFreq)
+    arrFreqIndex_fil, arrPower_fil = computeFFT(arrFiltered, 
+                                                nSamplingFreq, 
+                                                nDCEnd)
+    
    
 
     # plot 
-    fig, axes = plt.subplots(nrows=2, ncols=1, squeeze=True)
+    fig, axes = plt.subplots(nrows=3, ncols=1, squeeze=True)
     axes[0].plot(arrTouchVal, color='b')
-    axes[1].plot(arrFreqIndex, arrNormPower[nDCEnd:nSamples/2], color='r')
+    axes[1].plot(arrFreqIndex, arrPower, color='r')
+    axes[2].plot(arrFreqIndex_fil, arrPower_fil, color='r')
     plt.show()
 
 
+def computeFFT(arrData, nSamplingFreq, nDCEnd=10 ):
+    nCount = len(arrData)
+    dRes = nSamplingFreq*1.0/nCount
+    arrFFT = fftpack.fft(arrData)
+    arrPower = abs(arrFFT)/(nCount*1.0)
+    arrFreqIndex = np.linspace(nDCEnd*dRes, nSamplingFreq/2.0, 
+                               nCount/2-nDCEnd)
+                               
+    return arrFreqIndex, arrPower[nDCEnd: nCount/2]
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+
+
+
+

@@ -12,9 +12,10 @@ import com.github.mikephil.charting.components.YAxis.AxisDependency;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.interfaces.datasets.IDataSet;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -51,15 +52,26 @@ public class CapReader extends Activity
 
 				// update lineDataSet
 				LineData data = m_chart.getData();
+				LineDataSet ds = (LineDataSet) data.getDataSetByIndex(0);
 				data.addXValue("");
-				data.addEntry(new Entry(nVal, data.getXValCount()), 0);
+				data.addEntry(new Entry(nVal, ds.getEntryCount() ), 0);
+				
+				// clear old data if it's full
+				if(ds.getEntryCount() == Common.MAX_DATA_SIZE)
+				{
+					data.removeXValue(0);
+					ds.removeEntry(0);
+					
+					for (Entry entry : ds.getYVals() ) {
+		                entry.setXIndex(entry.getXIndex() - 1);
+		            }
+				}
 
+				
 				// notify
 				data.notifyDataChanged();
 				m_chart.notifyDataSetChanged();
-
-				m_chart.setVisibleXRange(0, Common.MAX_DATA_SIZE);
-				m_chart.moveViewToX(data.getXValCount());
+				m_chart.invalidate();
 			}
 		}
 	};
@@ -122,8 +134,8 @@ public class CapReader extends Activity
 		YAxis yl = chart.getAxisLeft();
 		yl.setTextColor(Color.BLACK);
 		yl.setDrawGridLines(true);
-		yl.setAxisMaxValue(1400f);
-		yl.setAxisMinValue(500f);
+		yl.setAxisMaxValue(1000f);
+		yl.setAxisMinValue(100f);
 		YAxis yl2 = chart.getAxisRight();
 		yl2.setEnabled(false);
 	}

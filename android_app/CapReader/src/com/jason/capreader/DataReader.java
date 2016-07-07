@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Queue;
 
 import android.os.Bundle;
@@ -30,8 +31,12 @@ public class DataReader implements Runnable
 	private boolean m_bSave2File = false;
 	private Queue<Integer> m_queue = null;
 
-	public static final int VALID_RANGE_LOW = 0;
+	public static final int VALID_RANGE_LOW = 100;
 	public static final int VALID_RANGE_HIGH = 2000;
+
+	public static final String STAT_MAX = "max";
+	public static final String STAT_SUM = "sum";
+	public static final String STAT_AVG = "avg";
 
 	public DataReader(String strPath, Queue<Integer> que, Handler h, boolean bSave2File)
 	{
@@ -66,10 +71,11 @@ public class DataReader implements Runnable
 						vals[i] = Integer.parseInt(items[i]);
 					}
 
-					int nMax = getMaxValues(vals, VALID_RANGE_LOW, VALID_RANGE_HIGH);
-
+					HashMap<String, Integer> hmStat = computeStatics(vals, VALID_RANGE_LOW, VALID_RANGE_HIGH);
+					
 					// update buffer
-					m_queue.offer(nMax);
+					int nVal2Show = hmStat.get(STAT_AVG);
+					m_queue.offer(nVal2Show);
 					if (m_queue.size() > Common.MAX_DATA_SIZE)
 					{
 						m_queue.poll();
@@ -79,7 +85,7 @@ public class DataReader implements Runnable
 					Message msg = m_uiHandler.obtainMessage();
 					msg.what = Common.HMSG_NEW_DATA;
 					Bundle b = new Bundle();
-					b.putInt(Common.DATA_KEY, nMax);
+					b.putInt(Common.DATA_KEY, nVal2Show);
 					msg.setData(b);
 					m_uiHandler.sendMessage(msg);
 
@@ -92,16 +98,24 @@ public class DataReader implements Runnable
 							Date date = new Date();
 							String strName = Common.DEFAULT_OUT_DIR + dateFormat.format(date) + "_cap.txt";
 							File fOutput = new File(Environment.getExternalStorageDirectory(), strName);
-							Log.i(Common.LOG_TAG, "Write to " + fOutput.getAbsolutePath() );
+							Log.i(Common.LOG_TAG, "Write to " + fOutput.getAbsolutePath());
 
 							m_bw = new BufferedWriter(new FileWriter(fOutput));
 						}
-						
+
 						m_bw.write(strLine);
 						m_bw.newLine();
 
 					}
 
+				}
+				else
+				{
+					Log.e(Common.LOG_TAG, String.format("Can not read data from file. file size=%d.", m_raf.length()));
+					m_raf.close();
+					Thread.sleep(100);
+					m_raf = new RandomAccessFile(m_strFilePath, "r");
+					continue;
 				}
 				m_raf.seek(0);
 				Thread.sleep(10);
@@ -124,8 +138,8 @@ public class DataReader implements Runnable
 				{
 					m_raf.close();
 					m_raf = null;
-					
-					if(m_bw != null)
+
+					if (m_bw != null)
 					{
 						m_bw.close();
 						m_bw = null;
@@ -140,33 +154,31 @@ public class DataReader implements Runnable
 
 	}
 
-	/**
-	 * Get the max value from array which is among the range of (nLow, nHigh)
-	 * 
-	 * @param vals
-	 * @param nLow
-	 * @param nHigh
-	 * @return
-	 */
-	private int getMaxValues(int[] vals, int nLow, int nHigh)
+
+	public HashMap<String, Integer> computeStatics(int[] arrVals, int nLow, int nHigh)
 	{
+		HashMap<String, Integer> mpStatics = new HashMap<>();
+		int nSum = 0;
 		int nMax = Integer.MIN_VALUE;
-		for (int i = 0; i < vals.length; i++)
+		int nAvg = 0;
+		int nValidSensorCount = 0;
+
+		for (int nVal : arrVals)
 		{
-			if (vals[i] > nLow && vals[i] < nHigh)
+			if (nVal > nLow && nVal < nHigh)
 			{
-				if (vals[i] > nMax)
-				{
-					nMax = vals[i];
-				}
+				nValidSensorCount++;
+				nMax = (nVal > nMax) ? nVal : nMax;
+				nSum += nVal;
 			}
-
 		}
-		return nMax;
-	}
+		nAvg = (nValidSensorCount==0) ? 0 : nSum/nValidSensorCount;
 
-	public void addData()
-	{
+		mpStatics.put(STAT_SUM, nSum);
+		mpStatics.put(STAT_MAX, nMax);
+		mpStatics.put(STAT_AVG, nAvg);
+
+		return mpStatics;
 
 	}
 
