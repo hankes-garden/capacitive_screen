@@ -118,7 +118,7 @@ public class DataReader implements Runnable
 					continue;
 				}
 				m_raf.seek(0);
-				Thread.sleep(10);
+				Thread.sleep(5);
 
 			}
 		}

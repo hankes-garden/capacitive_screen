@@ -8,4 +8,5 @@ public class Common
 	public static final int MAX_DATA_SIZE = 100;
 	public static final int HMSG_NEW_DATA = 1;
 	public static final String DATA_KEY = "val";
+	public static final int Y_AXIS_RANGE = 300;
 }
