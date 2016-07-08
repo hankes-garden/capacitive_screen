@@ -219,7 +219,7 @@ EXPORT_SYMBOL(touch_is_pressed);
 #define NODE_NUM 209
 #define VALID_NODE_NUM 64
 #define MAX_DATA_STR_BUF VALID_NODE_NUM * 5
-#define REFRESH_RATE 10 
+#define REFRESH_RATE 5 
 uint16_t qt_refrence_node[NODE_NUM] = { 0 };
 uint16_t qt_delta_node[NODE_NUM] = { 0 };
 uint16_t raw_delta_node[NODE_NUM] = {0};
@@ -591,7 +591,7 @@ static void mxt224_ta_probe(bool ta_status)
 	u8 nAmpHystValue = 1;
 	unsigned int nAmpHystRegAddr = 17;
 
-	u8 nBLENValue = 7<<4;
+	u8 nBLENValue = 3<<4;
 	unsigned int nBLENRegAddr = 6;
 
 	printk(KERN_ERR "[TSP] mxt224_ta_probe, modified by yanglin. \n");
@@ -798,12 +798,13 @@ static void mxt224_ta_probe(bool ta_status)
 			  size_one, &value);
 		printk(KERN_ERR "[yl] current TCHTHR=%d.\n", value);
                
-        /* // BLEN */
-        /* write_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
-              /* size_one, &nBLENValue); */
-        /* read_mem(copy_data, obj_address + (u16) nBLENRegAddr, */
-             /* (u8) size_one, &nBLENValue); */
-        /* printk(KERN_ERR "[yl]current BLEN=%d.\n", nBLENValue); */
+        // BLEN
+        read_mem(copy_data, obj_address + (u16) nBLENRegAddr,
+             (u8) size_one, &nBLENValue);
+        printk(KERN_ERR "[yl] previous BLEN=%d.\n", nBLENValue);
+        write_mem(copy_data, obj_address + (u16) nBLENRegAddr,
+              size_one, &nBLENValue);
+
 
         /* // AMPHYST  */
         /* write_mem(copy_data, obj_address + (u16) nAmpHystRegAddr, */
@@ -845,6 +846,16 @@ static void mxt224_ta_probe(bool ta_status)
 		size_one = 1;
 		write_mem(copy_data, obj_address + (u16) register_address,
 			  size_one, &value);
+
+        value = 0;
+        read_mem(copy_data, obj_address + (u16)0 ,
+             (u8) size_one, &value);
+        printk(KERN_ERR "[yl]previous T22 CTRL=%d.\n", value);
+        value = 0;
+        write_mem(copy_data, obj_address + (u16) 0,
+			  size_one, &value);
+        
+
 	}
 	copy_data->ta_status_pre = (bool) ta_status;
 };
