@@ -57,15 +57,24 @@ public class CapReader extends Activity
 				data.addEntry(new Entry(nVal, ds.getEntryCount() ), 0);
 				
 				// clear old data if it's full
+				float dAvg = 0f;
 				if(ds.getEntryCount() == Common.MAX_DATA_SIZE)
 				{
 					data.removeXValue(0);
 					ds.removeEntry(0);
 					
+					
 					for (Entry entry : ds.getYVals() ) {
 		                entry.setXIndex(entry.getXIndex() - 1);
+		                dAvg += entry.getVal();
 		            }
 				}
+				dAvg = dAvg/ds.getEntryCount();
+				
+				// set Y axis scale
+				YAxis yl = m_chart.getAxisLeft();
+				yl.setAxisMaxValue(dAvg+Common.Y_AXIS_RANGE/2);
+				yl.setAxisMinValue(dAvg-Common.Y_AXIS_RANGE/2);
 
 				
 				// notify
@@ -134,8 +143,8 @@ public class CapReader extends Activity
 		YAxis yl = chart.getAxisLeft();
 		yl.setTextColor(Color.BLACK);
 		yl.setDrawGridLines(true);
-		yl.setAxisMaxValue(1300f);
-		yl.setAxisMinValue(0f);
+//		yl.setAxisMaxValue(1400f);
+//		yl.setAxisMinValue(500f);
 		YAxis yl2 = chart.getAxisRight();
 		yl2.setEnabled(false);
 	}

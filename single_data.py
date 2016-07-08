@@ -19,14 +19,14 @@ def main():
 
     arrTouchVal = np.array(lsTouchValues)
     
-    nSamplingFreq = 100
+    nSamplingFreq = 200
     nDCEnd = 10
     # fft on raw
     arrFreqIndex, arrPower = computeFFT(arrTouchVal, nSamplingFreq, nDCEnd)
                                
                                
     # fft on filtered data
-    arrFiltered = sf.butter_highpass_filter(arrTouchVal, 10, nSamplingFreq)
+    arrFiltered = sf.butter_highpass_filter(arrTouchVal, 5, nSamplingFreq)
     arrFreqIndex_fil, arrPower_fil = computeFFT(arrFiltered, 
                                                 nSamplingFreq, 
                                                 nDCEnd)
@@ -34,10 +34,14 @@ def main():
    
 
     # plot 
-    fig, axes = plt.subplots(nrows=3, ncols=1, squeeze=True)
-    axes[0].plot(arrTouchVal, color='b')
-    axes[1].plot(arrFreqIndex, arrPower, color='r')
-    axes[2].plot(arrFreqIndex_fil, arrPower_fil, color='r')
+    fig, axes = plt.subplots(nrows=4, ncols=1, squeeze=True)
+    axes[0].plot(arrTouchVal)
+    axes[1].plot(arrFreqIndex, arrPower)
+    axes[1].set_xlim((5, 50))
+    axes[1].set_ylim((0, 1.5))
+    axes[2].plot(arrFiltered)
+    axes[3].plot(arrFreqIndex_fil, arrPower_fil)
+    fig.suptitle(strFilePath.split('/')[-1])
     plt.show()
 
 
