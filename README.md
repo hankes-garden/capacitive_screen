@@ -1,14 +1,14 @@
 How to get raw capacitance data from touch screen
 ========
-Capacitive touch screen detects finger touch event via sensing the capacitance changes. To get the raw capacitance from device, we need to modify the screen driver to communicate with screen controller. There is something we need to know before doing it:
+Capacitive touch screen detects finger touches via sensing the capacitance changes. To obtain the raw capacitance value from the screen, we need to modify the screen driver and communicate with screen controller. Before we start, some preliminaries are required:
 
-+ Model ID of taget touch screen, only with it we can locate the driver source file and corresponding communication protocol.
++ Model ID of the taget touch screen.
 
 + Source file of touch screen driver.
 
 + Document about communication protocol btw screen driver and screen controller.
 
-+ Basic knowledge of building//downloading customized android to the deivce. Cyanogenmod provides an excellent [turtorial](http://wiki.cyanogenmod.org/w/I9100_Info) on this topic.
++ Basic knowledge of building//downloading customized android to the deivce. The Cyanogenmod provides an excellent [turtorial](http://wiki.cyanogenmod.org/w/I9100_Info) on this topic.
  
 This project contains some basic codes to get raw capacitance data from a Samsung Galaxy SII (i9100), whose touch screen is Atmel mxt224_u1.
 
